@@ -1,0 +1,64 @@
+@host = http://localhost:5080
+
+### Health
+GET {{host}}/health
+
+### All package types: size, dimensions and price
+GET {{host}}/api/packages
+
+### One package type, by name
+GET {{host}}/api/packages/small
+
+### One package type, by id
+GET {{host}}/api/packages/11111111-1111-1111-1111-111111111111
+
+### Quote: fits the small box exactly
+POST {{host}}/api/quotes
+Content-Type: application/json
+
+{ "lengthMm": 200, "breadthMm": 300, "heightMm": 150, "weightKg": 5 }
+
+### Quote: one millimetre too big for small, so it becomes medium
+POST {{host}}/api/quotes
+Content-Type: application/json
+
+{ "lengthMm": 201, "breadthMm": 300, "heightMm": 150, "weightKg": 5 }
+
+### Quote: too heavy, no packaging solution (422, reason Overweight)
+POST {{host}}/api/quotes
+Content-Type: application/json
+
+{ "lengthMm": 100, "breadthMm": 100, "heightMm": 100, "weightKg": 25.01 }
+
+### Quote: too big for every box (422, reason Oversized)
+POST {{host}}/api/quotes
+Content-Type: application/json
+
+{ "lengthMm": 900, "breadthMm": 900, "heightMm": 900, "weightKg": 1 }
+
+### Quote: invalid input (400)
+POST {{host}}/api/quotes
+Content-Type: application/json
+
+{ "lengthMm": 0, "weightKg": -1 }
+
+### Add a package type
+POST {{host}}/api/packages
+Content-Type: application/json
+
+{ "name": "Extra Large", "lengthMm": 500, "breadthMm": 700, "heightMm": 300, "cost": 12.50 }
+
+### Add a duplicate name (409)
+POST {{host}}/api/packages
+Content-Type: application/json
+
+{ "name": "small", "lengthMm": 10, "breadthMm": 10, "heightMm": 10, "cost": 1 }
+
+### Update a package type (replace all fields)
+PUT {{host}}/api/packages/11111111-1111-1111-1111-111111111111
+Content-Type: application/json
+
+{ "name": "Small", "lengthMm": 200, "breadthMm": 300, "heightMm": 150, "cost": 5.50 }
+
+### Delete a package type
+DELETE {{host}}/api/packages/33333333-3333-3333-3333-333333333333

@@ -1,0 +1,24 @@
+# Normalise line endings so a Windows checkout and a macOS/Linux checkout agree.
+# Without this, CRLF can leak into shell scripts and break them on macOS/Linux.
+* text=auto
+
+*.cs      text diff=csharp
+*.csproj  text
+*.sln     text eol=crlf
+*.props   text
+*.json    text
+*.md      text
+*.http    text
+*.yml     text eol=lf
+
+# Shell scripts must stay LF even when checked out on Windows (WSL/Git Bash run them).
+*.sh      text eol=lf
+
+# PowerShell is happiest with CRLF on Windows.
+*.ps1     text eol=crlf
+
+# Never touch binaries.
+*.png     binary
+*.jpg     binary
+*.zip     binary
+*.dll     binary

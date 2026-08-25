@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Shipping.Contracts\Shipping.Contracts.csproj" />
+    <ProjectReference Include="..\Shipping.Core\Shipping.Core.csproj" />
+    <ProjectReference Include="..\Shipping.Persistence.Postgres\Shipping.Persistence.Postgres.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <InternalsVisibleTo Include="Shipping.Api.Tests" />
+  </ItemGroup>
+
+</Project>

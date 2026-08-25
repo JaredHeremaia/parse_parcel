@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- Deliberately dependency-free: the domain should be usable from an API,
+       a CLI, a background worker or a test harness without dragging in
+       framework or infrastructure packages. -->
+
+</Project>

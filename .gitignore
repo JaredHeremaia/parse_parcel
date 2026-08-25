@@ -1,0 +1,13 @@
+# macOS
+.DS_Store
+
+# Build output
+bin/
+obj/
+TestResults/
+
+# Editor / IDE
+.vs/
+.idea/
+.vscode/
+*.user
