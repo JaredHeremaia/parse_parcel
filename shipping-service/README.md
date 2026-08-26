@@ -31,16 +31,11 @@ dotnet run --project src/Shipping.Api         # API on http://localhost:5080
 Then, from a second terminal:
 
 ```bash
-dotnet run --project src/Shipping.Cli -- quote --length 200 --breadth 300 --height 150 --weight 5
-dotnet run --project src/Shipping.Cli -- packages list
+curl http://localhost:5080/api/packages
 ```
 
-```
-Package type : Small
-Cost         : 5.00 NZD
-Dimensions   : 200mm x 300mm x 150mm (LxBxH)
-Weight       : 5kg
-```
+See [API](#api) for every route, and `requests.http` for a ready-made request per endpoint
+including the failure cases.
 
 Those `dotnet` commands are identical on every platform. If you prefer shorter ones,
 `scripts/` has wrappers for both shells — see [Running on your platform](#running-on-your-platform).
@@ -98,34 +93,17 @@ and a machine-readable `reason` (`Overweight` or `Oversized`):
 | 409  | A package type with that name already exists                      |
 | 422  | Valid request, but no packaging solution (too big or too heavy)    |
 
-## CLI
-
-```
-shipping quote --length <mm> --breadth <mm> --height <mm> --weight <kg>
-shipping packages list
-shipping packages get <id|name>
-shipping packages add --name <name> --length <mm> --breadth <mm> --height <mm> --cost <amount>
-shipping packages update <id> [--name] [--length] [--breadth] [--height] [--cost]
-shipping packages delete <id>
-```
-
-The API address comes from `--api`, then `SHIPPING_API_URL`, then `http://localhost:5080`.
-`packages update` reads the current values first, so a single field can be changed without
-restating the rest. Exit codes: `0` success, `1` bad usage, `2` API error, `3` no packaging
-solution — so it composes in scripts.
-
 ## Running on your platform
 
-The `dotnet` CLI is identical everywhere; only shell syntax differs. Wrappers are provided
-for both shells and can be run from any directory — they resolve paths relative to
-themselves and pass the CLI's exit code straight through.
+The `dotnet` command line is identical everywhere; only shell syntax differs. Wrappers are
+provided for both shells and can be run from any directory — they resolve paths relative to
+themselves and pass the underlying exit code straight through.
 
 | Task | macOS / Linux | Windows (PowerShell) |
 |------|---------------|----------------------|
 | Run every test | `./scripts/test.sh` | `.\scripts\test.ps1` |
 | Run the API | `./scripts/run-api.sh` | `.\scripts\run-api.ps1` |
 | Run the API on Postgres | `./scripts/run-api.sh --postgres` | `.\scripts\run-api.ps1 -Postgres` |
-| Use the CLI | `./scripts/shipping.sh packages list` | `.\scripts\shipping.ps1 packages list` |
 
 **Windows notes**
 
@@ -191,19 +169,17 @@ behaves identically — only the `IPackageTypeStore` implementation changes.
 ```
 src/
   Shipping.Core                  Domain: dimensions, package types, quoting, catalogue rules
-  Shipping.Contracts             Request/response DTOs shared by the API and CLI
+  Shipping.Contracts             Request/response DTOs, the published wire shape
   Shipping.Api                   Minimal API endpoints
-  Shipping.Cli                   Console client
   Shipping.Persistence.Postgres  EF Core store (optional)
 tests/
   Shipping.Core.Tests            Domain rules and boundaries
   Shipping.Api.Tests             Every endpoint over a real host
-  Shipping.Cli.Tests             Argument parsing, dispatch, output
-scripts/                         Bash and PowerShell wrappers for test / run-api / cli
+scripts/                         Bash and PowerShell wrappers for test / run-api
 ```
 
 `Shipping.Core` has no external dependencies and no knowledge of HTTP or databases: the
-packaging rules are testable on their own, and the API and CLI are thin shells over them.
+packaging rules are testable on their own, and the API is a thin shell over them.
 Expected failures (not found, conflict, no packaging solution) are returned as values via
 `Result<T>` and `QuoteResult` rather than thrown, so each caller decides how to present them.
 
@@ -216,8 +192,8 @@ dotnet test
 Covers the main path and the edges: exact boundary dimensions (200x300x150 is Small; one
 millimetre over on any side moves up a size), exactly 25kg versus 25.01kg, packages too big
 for every box, zero and negative inputs, malformed JSON, duplicate names, unknown ids, and
-double deletes. The CLI's parser, exit codes and the fetch-then-merge update are tested
-against a stubbed transport, so no network or database is involved.
+double deletes. The endpoint tests run against a real host in memory, so no network or
+database is involved.
 
 ## Decisions and assumptions
 
@@ -241,14 +217,13 @@ against a stubbed transport, so no network or database is involved.
   self-contained. A long-lived service would use EF migrations.
 - **The weight limit is configuration** (`Packaging:MaxWeightKg`), defaulting to 25, since
   "currently unable to move heavy packages" reads like a limit that will move.
-- **Nothing is platform-specific.** No shell-outs, no registry, no path assumptions, and the
-  console output is plain ASCII so it renders on any Windows code page. Line endings come
-  from `Environment.NewLine` in both the code and the tests that assert on it, so the suite
-  passes identically on CRLF and LF machines.
+- **Nothing is platform-specific.** No shell-outs, no registry and no path assumptions, so
+  the suite passes identically on Windows, macOS and Linux. `.gitattributes` normalises line
+  endings, so a CRLF or LF checkout behaves the same.
 
 ## What I would add next
 
 Swagger/OpenAPI (left out to keep the dependency list to one optional package), structured
 request logging with correlation ids, authentication on the write endpoints, optimistic
-concurrency on `PUT`, and a `PATCH` so the CLI's merge could happen server-side. If quoting
-became hot, the catalogue is small and stable enough to cache.
+concurrency on `PUT`, and a `PATCH` so a single field can be changed without restating the
+rest. If quoting became hot, the catalogue is small and stable enough to cache.
