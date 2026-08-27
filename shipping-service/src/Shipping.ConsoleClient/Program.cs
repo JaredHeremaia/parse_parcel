@@ -15,6 +15,19 @@ using Shipping.Contracts;
 
 const string DefaultApiUrl = "http://localhost:5080";
 
+// A raw string literal keeps the backslashes and backticks intact without escaping.
+const string Banner = """
+     _____              _        __  __
+    |_   _| __ __ _  __| | ___  |  \/  | ___    __ _
+      | || '__/ _` |/ _` |/ _ \ | |\/| |/ _ \  /  ('>--
+      | || | | (_| | (_| |  __/ | |  | |  __/  \__/
+      |_||_|  \__,_|\__,_|\___| |_|  |_|\___|   L\_
+       W h e r e     k i w i     l o o k     f i r s t
+    """;
+
+Console.WriteLine(Banner);
+Console.WriteLine();
+
 var baseUrl = Environment.GetEnvironmentVariable("SHIPPING_API_URL") ?? DefaultApiUrl;
 
 // The API serialises with ASP.NET's web defaults (camelCase), so read it back the same way.

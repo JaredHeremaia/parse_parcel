@@ -105,6 +105,13 @@ dotnet run --project src/Shipping.ConsoleClient 201 300 150 5  # length breadth 
 ```
 
 ```
+ _____              _        __  __
+|_   _| __ __ _  __| | ___  |  \/  | ___    __ _
+  | || '__/ _` |/ _` |/ _ \ | |\/| |/ _ \  /  ('>--
+  | || | | (_| | (_| |  __/ | |  | |  __/  \__/
+  |_||_|  \__,_|\__,_|\___| |_|  |_|\___|   L\_
+   W h e r e     k i w i     l o o k     f i r s t
+
 Package types at http://localhost:5080
 
   Small     200 x  300 x  150 mm     5.00 NZD
