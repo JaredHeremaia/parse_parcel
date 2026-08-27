@@ -18,12 +18,17 @@ a currency on the wire.
 ## Quick start
 
 Runs the same on **Windows, macOS and Linux** — it is plain .NET 8 with no OS-specific
-code. All you need is the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)
-(or newer — `global.json` rolls forward). No database is needed: the catalogue is held in
-memory by default.
+code. You need the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0). No
+database is needed: the catalogue is held in memory by default.
+
+A newer SDK will *build* the solution — `global.json` rolls forward — but the tests run on
+the `net8.0` test host, which needs the .NET 8 runtime itself. So install .NET 8 even if
+you already have 9 or 10; they sit side by side. If you would rather not add a second SDK,
+the [ASP.NET Core 8.0 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) is the
+smallest download that covers both test projects.
 
 ```bash
-dotnet --version                              # 8.0.100 or later
+dotnet --list-runtimes                        # expect a Microsoft.AspNetCore.App 8.0.x line
 dotnet test                                   # run every test
 dotnet run --project src/Shipping.Api         # API on http://localhost:5080
 ```
@@ -239,6 +244,8 @@ domain, and depends only on the wire contracts.
 ```bash
 dotnet test
 ```
+
+Needs the .NET 8 runtime, not just a newer SDK — see [Quick start](#quick-start).
 
 Covers the main path and the edges: exact boundary dimensions (200x300x150 is Small; one
 millimetre over on any side moves up a size), exactly 25kg versus 25.01kg, packages too big
