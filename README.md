@@ -32,10 +32,11 @@ Then, from a second terminal:
 
 ```bash
 curl http://localhost:5080/api/packages
+dotnet run --project src/Shipping.ConsoleClient   # or drive it from the demo client
 ```
 
-See [API](#api) for every route, and `requests.http` for a ready-made request per endpoint
-including the failure cases.
+See [API](#api) for every route, [Console client](#console-client) for the demo client, and
+`requests.http` for a ready-made request per endpoint including the failure cases.
 
 Those `dotnet` commands are identical on every platform. If you prefer shorter ones,
 `scripts/` has wrappers for both shells — see [Running on your platform](#running-on-your-platform).
@@ -92,6 +93,41 @@ and a machine-readable `reason` (`Overweight` or `Oversized`):
 | 404  | No such package type                                              |
 | 409  | A package type with that name already exists                      |
 | 422  | Valid request, but no packaging solution (too big or too heavy)    |
+
+## Console client
+
+`Shipping.ConsoleClient` is a small demo client that calls the API over HTTP. It lists the
+catalogue and then asks for a quote — the sample package, or one given as four arguments:
+
+```bash
+dotnet run --project src/Shipping.ConsoleClient                # 200x300x150mm at 5kg
+dotnet run --project src/Shipping.ConsoleClient 201 300 150 5  # length breadth height weight
+```
+
+```
+Package types at http://localhost:5080
+
+  Small     200 x  300 x  150 mm     5.00 NZD
+  Medium    300 x  400 x  200 mm     7.50 NZD
+  Large     400 x  600 x  250 mm     8.50 NZD
+
+Quoting 201x300x150mm at 5kg
+
+  Package type : Medium
+  Cost         : 7.50 NZD
+```
+
+A package we cannot ship is reported with the API's machine-readable `reason` rather than a
+bare status code:
+
+```
+  No packaging solution (Overweight): We cannot currently ship packages over 25kg (this one is 26kg).
+```
+
+The address comes from `SHIPPING_API_URL`, defaulting to `http://localhost:5080`. Exit codes
+are `0` on success and `1` for bad arguments or an unreachable API. It references
+`Shipping.Contracts` and nothing else, so the request and response shapes cannot drift from
+the API's.
 
 ## Running on your platform
 
@@ -169,8 +205,9 @@ behaves identically — only the `IPackageTypeStore` implementation changes.
 ```
 src/
   Shipping.Core                  Domain: dimensions, package types, quoting, catalogue rules
-  Shipping.Contracts             Request/response DTOs, the published wire shape
+  Shipping.Contracts             Request/response DTOs shared by the API and the client
   Shipping.Api                   Minimal API endpoints
+  Shipping.ConsoleClient         Demo client, calls the API over HTTP
   Shipping.Persistence.Postgres  EF Core store (optional)
 tests/
   Shipping.Core.Tests            Domain rules and boundaries
@@ -182,6 +219,9 @@ scripts/                         Bash and PowerShell wrappers for test / run-api
 packaging rules are testable on their own, and the API is a thin shell over them.
 Expected failures (not found, conflict, no packaging solution) are returned as values via
 `Result<T>` and `QuoteResult` rather than thrown, so each caller decides how to present them.
+
+`Shipping.ConsoleClient` sits outside that: it is a consumer of the HTTP API, not of the
+domain, and depends only on the wire contracts.
 
 ## Tests
 
