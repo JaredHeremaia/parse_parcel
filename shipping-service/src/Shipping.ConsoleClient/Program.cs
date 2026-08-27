@@ -25,8 +25,12 @@ const string Banner = """
        W h e r e     k i w i     l o o k     f i r s t
     """;
 
-Console.WriteLine(Banner);
-Console.WriteLine();
+// Decoration only, so keep it out of a pipe or a redirect to a file.
+if (!Console.IsOutputRedirected)
+{
+    Console.WriteLine(Banner);
+    Console.WriteLine();
+}
 
 var baseUrl = Environment.GetEnvironmentVariable("SHIPPING_API_URL") ?? DefaultApiUrl;
 

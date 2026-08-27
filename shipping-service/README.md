@@ -131,6 +131,9 @@ bare status code:
   No packaging solution (Overweight): We cannot currently ship packages over 25kg (this one is 26kg).
 ```
 
+The banner is decoration, so it is skipped when output is piped or redirected to a file and
+only the results are written.
+
 The address comes from `SHIPPING_API_URL`, defaulting to `http://localhost:5080`. Exit codes
 are `0` on success and `1` for bad arguments or an unreachable API. It references
 `Shipping.Contracts` and nothing else, so the request and response shapes cannot drift from
