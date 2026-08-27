@@ -9,4 +9,8 @@
     <ProjectReference Include="..\Shipping.Contracts\Shipping.Contracts.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="Shipping.ConsoleClient.Tests" />
+  </ItemGroup>
+
 </Project>

@@ -21,6 +21,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shipping.Api.Tests", "tests
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shipping.ConsoleClient", "src\Shipping.ConsoleClient\Shipping.ConsoleClient.csproj", "{171FB43C-C2E4-4D18-8CC2-0153F1904114}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Shipping.ConsoleClient.Tests", "tests\Shipping.ConsoleClient.Tests\Shipping.ConsoleClient.Tests.csproj", "{6D59C600-3297-4528-A269-4F284A2F8C14}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,6 +60,10 @@ Global
 		{171FB43C-C2E4-4D18-8CC2-0153F1904114}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{171FB43C-C2E4-4D18-8CC2-0153F1904114}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{171FB43C-C2E4-4D18-8CC2-0153F1904114}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6D59C600-3297-4528-A269-4F284A2F8C14}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6D59C600-3297-4528-A269-4F284A2F8C14}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6D59C600-3297-4528-A269-4F284A2F8C14}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6D59C600-3297-4528-A269-4F284A2F8C14}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
 		{A9E1B8A5-9D00-4AEE-8CF7-0F3997AD36C4} = {0BC91E43-EDE6-4447-A30C-1A971045159E}
@@ -67,5 +73,6 @@ Global
 		{2C704F9E-38AC-4D39-BBE8-52740AD3D275} = {965254EF-1D8F-45F4-AD52-1FC3CE9102BF}
 		{36B6F65B-C4CF-4F0B-BA80-ACEBF68406EB} = {965254EF-1D8F-45F4-AD52-1FC3CE9102BF}
 		{171FB43C-C2E4-4D18-8CC2-0153F1904114} = {0BC91E43-EDE6-4447-A30C-1A971045159E}
+		{6D59C600-3297-4528-A269-4F284A2F8C14} = {965254EF-1D8F-45F4-AD52-1FC3CE9102BF}
 	EndGlobalSection
 EndGlobal

@@ -222,6 +222,7 @@ src/
 tests/
   Shipping.Core.Tests            Domain rules and boundaries
   Shipping.Api.Tests             Every endpoint over a real host
+  Shipping.ConsoleClient.Tests   Argument parsing and output, over a stubbed transport
 scripts/                         Bash and PowerShell wrappers for test / run-api
 ```
 
@@ -242,8 +243,9 @@ dotnet test
 Covers the main path and the edges: exact boundary dimensions (200x300x150 is Small; one
 millimetre over on any side moves up a size), exactly 25kg versus 25.01kg, packages too big
 for every box, zero and negative inputs, malformed JSON, duplicate names, unknown ids, and
-double deletes. The endpoint tests run against a real host in memory, so no network or
-database is involved.
+double deletes. The endpoint tests run against a real host in memory, and the console
+client's parsing, exit codes and output are tested against a stubbed transport, so no
+network or database is involved.
 
 ## Decisions and assumptions
 
