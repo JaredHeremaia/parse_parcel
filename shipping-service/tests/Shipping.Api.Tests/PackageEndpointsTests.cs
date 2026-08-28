@@ -203,6 +203,8 @@ public sealed class PackageEndpointsTests : IDisposable
             StandardPackageTypes.SmallId,
             new PackageTypePatchRequest(LengthMm: 250));
 
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
         var updated = await response.Content.ReadFromJsonAsync<PackageTypeResponse>();
 
         Assert.Equal(250, updated!.Dimensions.LengthMm);

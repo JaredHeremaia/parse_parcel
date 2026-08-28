@@ -230,6 +230,44 @@ public class PackageCatalogTests
     }
 
     [Fact]
+    public async Task A_rejected_update_leaves_the_package_type_untouched()
+    {
+        var store = new InMemoryPackageTypeStore();
+        var catalog = new PackageCatalog(store);
+
+        // The cost is over PackageType.MaxCost, so Update throws part way through. The
+        // store hands out live references, so a half-applied change would be visible.
+        var result = await catalog.UpdateAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypeChanges(Name: "Huge", Cost: PackageType.MaxCost + 1m));
+
+        Assert.Equal(ErrorCode.Invalid, result.Error);
+
+        var after = await store.GetByIdAsync(StandardPackageTypes.SmallId);
+
+        Assert.Equal("Small", after!.Name);
+        Assert.Equal(5m, after.Cost);
+        Assert.Equal(new Dimensions(200, 300, 150), after.MaxDimensions);
+    }
+
+    [Fact]
+    public async Task A_rejected_update_does_not_change_the_dimensions_either()
+    {
+        var store = new InMemoryPackageTypeStore();
+        var catalog = new PackageCatalog(store);
+
+        var result = await catalog.UpdateAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypeChanges(Name: " ", LengthMm: 250));
+
+        Assert.Equal(ErrorCode.Invalid, result.Error);
+
+        var after = await store.GetByIdAsync(StandardPackageTypes.SmallId);
+
+        Assert.Equal(200, after!.MaxDimensions.LengthMm);
+    }
+
+    [Fact]
     public async Task Updating_to_an_impossible_side_is_invalid()
     {
         var result = await CreateCatalog()

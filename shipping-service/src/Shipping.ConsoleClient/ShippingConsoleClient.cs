@@ -124,14 +124,8 @@ internal sealed class ShippingConsoleClient
         PackageTypePatchRequest request,
         CancellationToken cancellationToken)
     {
-        // PATCH has no PatchAsJsonAsync helper, so build the message directly.
-        using var message = new HttpRequestMessage(HttpMethod.Patch, $"/api/packages/{id}")
-        {
-            Content = JsonContent.Create(request, options: Json),
-        };
-
         using var response = await _http
-            .SendAsync(message, cancellationToken)
+            .PatchAsJsonAsync($"/api/packages/{id}", request, Json, cancellationToken)
             .ConfigureAwait(false);
 
         return await WriteChangedPackageAsync(response, "Updated", cancellationToken).ConfigureAwait(false);

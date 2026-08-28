@@ -109,6 +109,35 @@ public class CommandLineTests
     }
 
     [Fact]
+    public void An_option_is_never_swallowed_as_the_previous_options_value()
+    {
+        // Otherwise this renames the package type to "--cost".
+        var ex = Assert.Throws<FormatException>(() => CommandLine.ParseUpdate(
+            ["update", "11111111-1111-1111-1111-111111111111", "--name", "--cost"]));
+
+        Assert.Contains("needs a value", ex.Message, StringComparison.Ordinal);
+        Assert.Contains("--cost", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_trailing_option_after_a_valid_pair_is_still_rejected()
+    {
+        var ex = Assert.Throws<FormatException>(() => CommandLine.ParseUpdate(
+            ["update", "11111111-1111-1111-1111-111111111111", "--cost", "5", "--name", "--length"]));
+
+        Assert.Contains("needs a value", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void A_name_that_merely_starts_with_a_dash_is_still_accepted()
+    {
+        var (_, request) = CommandLine.ParseUpdate(
+            ["update", "11111111-1111-1111-1111-111111111111", "--name", "-odd-but-legal"]);
+
+        Assert.Equal("-odd-but-legal", request.Name);
+    }
+
+    [Fact]
     public void Delete_reads_the_id()
         => Assert.Equal(
             Guid.Parse("11111111-1111-1111-1111-111111111111"),

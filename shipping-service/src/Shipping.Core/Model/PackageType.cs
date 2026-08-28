@@ -52,8 +52,14 @@ public sealed class PackageType
     {
         ArgumentNullException.ThrowIfNull(maxDimensions);
 
-        Name = NormaliseName(name, nameof(name));
-        Cost = RequireCost(cost, nameof(cost));
+        // Validate everything before assigning anything. A caller that hands over one bad
+        // value must leave the package type exactly as it was, not half changed - stores
+        // hand out live references, so a partial write is visible to everyone.
+        var validatedName = NormaliseName(name, nameof(name));
+        var validatedCost = RequireCost(cost, nameof(cost));
+
+        Name = validatedName;
+        Cost = validatedCost;
         LengthMm = maxDimensions.LengthMm;
         BreadthMm = maxDimensions.BreadthMm;
         HeightMm = maxDimensions.HeightMm;

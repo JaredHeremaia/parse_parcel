@@ -77,7 +77,7 @@ internal static class CommandLine
 
             // Check the option is one we know before asking for its value, so an unknown
             // flag is reported as unknown rather than as a missing value.
-            if (option is not ("--name" or "--length" or "--breadth" or "--height" or "--cost"))
+            if (!IsOption(option))
             {
                 throw new FormatException(
                     $"Unknown option '{args[i]}'. Expected --name, --length, --breadth, --height or --cost.");
@@ -90,13 +90,21 @@ internal static class CommandLine
 
             var value = args[i + 1];
 
+            // Without this, 'update <id> --name --cost' would rename the package type to
+            // "--cost" rather than reporting the missing value.
+            if (IsOption(value.ToLowerInvariant()))
+            {
+                throw new FormatException($"'{args[i]}' needs a value, but was followed by '{value}'.");
+            }
+
             switch (option)
             {
                 case "--name": name = value; break;
                 case "--length": length = ParseInt(value, "length"); break;
                 case "--breadth": breadth = ParseInt(value, "breadth"); break;
                 case "--height": height = ParseInt(value, "height"); break;
-                default: cost = ParseDecimal(value, "cost"); break;
+                case "--cost": cost = ParseDecimal(value, "cost"); break;
+                default: throw new FormatException($"Option '{args[i]}' is not handled.");
             }
         }
 
@@ -128,6 +136,9 @@ internal static class CommandLine
         throw new FormatException(
             $"'{args[0]}' takes {expected - 1} arguments but got {args.Length - 1}. Expected: {form}");
     }
+
+    private static bool IsOption(string value)
+        => value is "--name" or "--length" or "--breadth" or "--height" or "--cost";
 
     private static Guid ParseGuid(string value)
         => Guid.TryParse(value, out var id)

@@ -90,6 +90,12 @@ public sealed class PackageCatalog
             return Result<PackageType>.NotFound($"No package type found with id '{id}'.");
         }
 
+        if (changes.IsEmpty)
+        {
+            // Nothing was asked for, so do not spend a write rewriting identical values.
+            return Result<PackageType>.Success(packageType);
+        }
+
         var name = changes.Name ?? packageType.Name;
 
         var validation = ValidateName(name);
