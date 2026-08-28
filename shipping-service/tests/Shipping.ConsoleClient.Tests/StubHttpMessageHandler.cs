@@ -30,6 +30,13 @@ internal sealed class StubHttpMessageHandler : HttpMessageHandler
     public static HttpResponseMessage Ok<T>(T value)
         => new(HttpStatusCode.OK) { Content = JsonContent.Create(value, options: Json) };
 
+    /// <summary>201 with the created record, as POST /api/packages returns.</summary>
+    public static HttpResponseMessage Created<T>(T value)
+        => new(HttpStatusCode.Created) { Content = JsonContent.Create(value, options: Json) };
+
+    /// <summary>204 with no body, as a successful DELETE returns.</summary>
+    public static HttpResponseMessage NoContent() => new(HttpStatusCode.NoContent);
+
     /// <summary>An RFC 7807 problem document, as the API returns for a failure.</summary>
     public static HttpResponseMessage Problem<T>(HttpStatusCode status, T value)
         => new(status)

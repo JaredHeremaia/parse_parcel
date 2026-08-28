@@ -9,13 +9,18 @@ namespace Shipping.ConsoleClient;
 internal static class ExitCodes
 {
     public const int Success = 0;
+
+    /// <summary>Bad usage, or the API could not be reached at all.</summary>
     public const int Failure = 1;
+
+    /// <summary>The API was reached and refused the request.</summary>
+    public const int ApiError = 2;
 }
 
 /// <summary>
-/// Lists the catalogue and asks the API to quote a package. Writes to injected
-/// TextWriters and talks over an injected HttpClient, so the behaviour can be
-/// exercised without a console or a network.
+/// Drives the shipping API from the command line. Writes to injected TextWriters and talks
+/// over an injected HttpClient, so the behaviour can be exercised without a console or a
+/// network.
 /// </summary>
 internal sealed class ShippingConsoleClient
 {
@@ -38,19 +43,24 @@ internal sealed class ShippingConsoleClient
 
     public async Task<int> RunAsync(string[] args, CancellationToken cancellationToken = default)
     {
+        ArgumentNullException.ThrowIfNull(args);
+
         try
         {
-            var request = QuoteArguments.Parse(args);
+            if (args.Length == 0)
+            {
+                await ShowPackagesAsync(cancellationToken).ConfigureAwait(false);
+                await ShowQuoteAsync(CommandLine.Sample, cancellationToken).ConfigureAwait(false);
+                return ExitCodes.Success;
+            }
 
-            await ShowPackagesAsync(cancellationToken).ConfigureAwait(false);
-            await ShowQuoteAsync(request, cancellationToken).ConfigureAwait(false);
-
-            return ExitCodes.Success;
+            return await DispatchAsync(args, cancellationToken).ConfigureAwait(false);
         }
         catch (FormatException ex)
         {
             _error.WriteLine(ex.Message);
-            _error.WriteLine(QuoteArguments.Usage);
+            _error.WriteLine();
+            _error.WriteLine(CommandLine.Usage);
             return ExitCodes.Failure;
         }
         catch (HttpRequestException ex)
@@ -59,6 +69,105 @@ internal sealed class ShippingConsoleClient
             _error.WriteLine("Start it with: dotnet run --project src/Shipping.Api");
             return ExitCodes.Failure;
         }
+    }
+
+    private async Task<int> DispatchAsync(string[] args, CancellationToken cancellationToken)
+    {
+        switch (args[0].ToLowerInvariant())
+        {
+            case "help":
+            case "--help":
+            case "-h":
+                _output.WriteLine(CommandLine.Usage);
+                return ExitCodes.Success;
+
+            case "list":
+                await ShowPackagesAsync(cancellationToken).ConfigureAwait(false);
+                return ExitCodes.Success;
+
+            case "quote":
+                await ShowQuoteAsync(CommandLine.ParseQuote(args), cancellationToken).ConfigureAwait(false);
+                return ExitCodes.Success;
+
+            case "add":
+                return await AddAsync(CommandLine.ParseAdd(args), cancellationToken).ConfigureAwait(false);
+
+            case "update":
+                var (id, request) = CommandLine.ParseUpdate(args);
+                return await UpdateAsync(id, request, cancellationToken).ConfigureAwait(false);
+
+            case "delete":
+                return await DeleteAsync(CommandLine.ParseDelete(args), cancellationToken).ConfigureAwait(false);
+
+            default:
+                throw new FormatException($"Unknown command '{args[0]}'.");
+        }
+    }
+
+    private async Task<int> AddAsync(PackageTypeRequest request, CancellationToken cancellationToken)
+    {
+        using var response = await _http
+            .PostAsJsonAsync("/api/packages", request, Json, cancellationToken)
+            .ConfigureAwait(false);
+
+        return await WriteChangedPackageAsync(response, "Added", cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<int> UpdateAsync(
+        Guid id,
+        PackageTypeRequest request,
+        CancellationToken cancellationToken)
+    {
+        using var response = await _http
+            .PutAsJsonAsync($"/api/packages/{id}", request, Json, cancellationToken)
+            .ConfigureAwait(false);
+
+        return await WriteChangedPackageAsync(response, "Updated", cancellationToken).ConfigureAwait(false);
+    }
+
+    private async Task<int> DeleteAsync(Guid id, CancellationToken cancellationToken)
+    {
+        using var response = await _http
+            .DeleteAsync($"/api/packages/{id}", cancellationToken)
+            .ConfigureAwait(false);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            await WriteFailureAsync(response, cancellationToken).ConfigureAwait(false);
+            return ExitCodes.ApiError;
+        }
+
+        // A successful delete is 204 with no body, so there is nothing to read back.
+        _output.WriteLine($"Deleted {id}.");
+        return ExitCodes.Success;
+    }
+
+    /// <summary>Shared tail of add and update: report the package the API returned, or the failure.</summary>
+    private async Task<int> WriteChangedPackageAsync(
+        HttpResponseMessage response,
+        string verb,
+        CancellationToken cancellationToken)
+    {
+        if (!response.IsSuccessStatusCode)
+        {
+            await WriteFailureAsync(response, cancellationToken).ConfigureAwait(false);
+            return ExitCodes.ApiError;
+        }
+
+        var packageType = await response.Content
+            .ReadFromJsonAsync<PackageTypeResponse>(Json, cancellationToken)
+            .ConfigureAwait(false);
+
+        if (packageType is null)
+        {
+            _error.WriteLine("The API returned an empty response.");
+            return ExitCodes.ApiError;
+        }
+
+        _output.WriteLine($"{verb} '{packageType.Name}'.");
+        _output.WriteLine(Line(packageType));
+        _output.WriteLine($"  {packageType.Id}");
+        return ExitCodes.Success;
     }
 
     private async Task ShowPackagesAsync(CancellationToken cancellationToken)
@@ -73,13 +182,7 @@ internal sealed class ShippingConsoleClient
 
         foreach (var packageType in packageTypes)
         {
-            var size = packageType.Dimensions;
-
-            _output.WriteLine(string.Create(
-                CultureInfo.InvariantCulture,
-                $"  {packageType.Name,-8} " +
-                $"{size.LengthMm,4} x {size.BreadthMm,4} x {size.HeightMm,4} mm   " +
-                $"{packageType.Cost,6:0.00} NZD"));
+            _output.WriteLine(Line(packageType));
         }
 
         _output.WriteLine();
@@ -146,5 +249,16 @@ internal sealed class ShippingConsoleClient
         {
             _error.WriteLine($"    - {message}");
         }
+    }
+
+    private static string Line(PackageTypeResponse packageType)
+    {
+        var size = packageType.Dimensions;
+
+        return string.Create(
+            CultureInfo.InvariantCulture,
+            $"  {packageType.Name,-12} " +
+            $"{size.LengthMm,4} x {size.BreadthMm,4} x {size.HeightMm,4} mm   " +
+            $"{packageType.Cost,6:0.00} NZD");
     }
 }

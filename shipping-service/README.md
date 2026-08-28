@@ -174,12 +174,25 @@ and a machine-readable `reason` (`Overweight` or `Oversized`):
 
 ## Console client
 
-`Shipping.ConsoleClient` is a small demo client that calls the API over HTTP. It lists the
-catalogue and then asks for a quote — the sample package, or one given as four arguments:
+`Shipping.ConsoleClient` calls the API over HTTP. Run it with no arguments for a tour — the
+catalogue plus a quote for the sample package — or give it a command:
+
+```
+list                                                    every package type
+quote  <length> <breadth> <height> <weight>             advise on cost and package type
+add    <name> <length> <breadth> <height> <cost>        add a package type
+update <id> <name> <length> <breadth> <height> <cost>   replace a package type
+delete <id>                                             remove a package type
+help                                                    show usage
+```
+
+Lengths are whole millimetres, weight is kilograms, cost is NZD. A name containing spaces
+needs quoting. Arguments after `--` go to the client rather than to `dotnet run`:
 
 ```bash
-dotnet run --project src/Shipping.ConsoleClient                # 200x300x150mm at 5kg
-dotnet run --project src/Shipping.ConsoleClient 201 300 150 5  # length breadth height weight
+dotnet run --project src/Shipping.ConsoleClient
+dotnet run --project src/Shipping.ConsoleClient -- quote 201 300 150 5
+dotnet run --project src/Shipping.ConsoleClient -- add "Extra Large" 500 700 300 12.50
 ```
 
 ```
@@ -192,15 +205,27 @@ dotnet run --project src/Shipping.ConsoleClient 201 300 150 5  # length breadth 
 
 Package types at http://localhost:5080
 
-  Small     200 x  300 x  150 mm     5.00 NZD
-  Medium    300 x  400 x  200 mm     7.50 NZD
-  Large     400 x  600 x  250 mm     8.50 NZD
+  Small         200 x  300 x  150 mm     5.00 NZD
+  Medium        300 x  400 x  200 mm     7.50 NZD
+  Large         400 x  600 x  250 mm     8.50 NZD
 
-Quoting 201x300x150mm at 5kg
+Quoting 200x300x150mm at 5kg
 
-  Package type : Medium
-  Cost         : 7.50 NZD
+  Package type : Small
+  Cost         : 5.00 NZD
 ```
+
+Writing to the catalogue reports what the API returned:
+
+```
+$ dotnet run --project src/Shipping.ConsoleClient -- add "Extra Large" 500 700 300 12.50
+Added 'Extra Large'.
+  Extra Large   500 x  700 x  300 mm    12.50 NZD
+  de3436e9-3971-4d03-a4c6-92e29c4ff4d8
+```
+
+`update` is a `PUT`, so it replaces the whole package type — every field is required and what
+you type is what it becomes, rather than being merged into the existing values.
 
 A package we cannot ship is reported with the API's machine-readable `reason` rather than a
 bare status code:
@@ -212,10 +237,17 @@ bare status code:
 The banner is decoration, so it is skipped when output is piped or redirected to a file and
 only the results are written.
 
-The address comes from `SHIPPING_API_URL`, defaulting to `http://localhost:5080`. Exit codes
-are `0` on success and `1` for bad arguments or an unreachable API. It references
+The address comes from `SHIPPING_API_URL`, defaulting to `http://localhost:5080`. It references
 `Shipping.Contracts` and nothing else, so the request and response shapes cannot drift from
 the API's.
+
+**Exit codes**
+
+| Code | When |
+|------|------|
+| 0 | The command succeeded. A quote of "no packaging solution" counts: the API answered. |
+| 1 | Bad usage, or the API could not be reached at all. |
+| 2 | The API was reached and refused the request — a duplicate name, an unknown id. |
 
 ## Running on your platform
 
