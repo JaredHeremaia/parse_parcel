@@ -193,17 +193,36 @@ docker compose up -d
 dotnet run --project src/Shipping.Api --launch-profile postgres
 ```
 
-`docker compose` (with a space) is Compose v2, which ships as a plugin to the Docker CLI:
+That first line needs two separate things: a **Docker engine** to run the container, and the
+**Compose v2 plugin** (`docker compose`, with a space). Docker Desktop provides both. A bare
+`docker` CLI on its own provides neither — it is only a client.
 
-| Platform | How to get it |
-|----------|---------------|
-| macOS | [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/) includes it. If you have the `docker` CLI without it, `brew install docker-compose` adds the plugin. |
-| Windows | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) includes it. WSL 2 is the recommended backend. |
-| Linux | [Install the plugin](https://docs.docker.com/compose/install/linux/) (`docker-compose-plugin`). |
+| Platform | How to get both |
+|----------|-----------------|
+| macOS | [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/), or `brew install --cask docker-desktop`. Launch it once (`open -a Docker`) so the engine starts. |
+| Windows | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/), with WSL 2 as the backend. |
+| Linux | [Docker Engine](https://docs.docker.com/engine/install/) plus the [Compose plugin](https://docs.docker.com/compose/install/linux/) (`docker-compose-plugin`). |
 
-Check it with `docker compose version`. If that reports `unknown command: docker compose`, the
-plugin is missing — the old standalone `docker-compose` (with a hyphen) is a separate v1 tool
-and is no longer maintained.
+Check each half separately:
+
+```bash
+docker compose version                      # plugin: expect "Docker Compose version v2.x"
+docker info --format '{{.ServerVersion}}'   # engine: expect a version, not a socket error
+```
+
+The two failures look nothing alike:
+
+- `unknown shorthand flag: 'd' in -d` — the Compose plugin is missing, so `docker` never
+  recognised `compose` as a subcommand and tried to parse `-d` itself.
+- `Cannot connect to the Docker daemon` — the plugin is present but no engine is running.
+
+The hyphenated `docker-compose` is the unmaintained v1 tool and is not what these instructions
+mean.
+
+On macOS, Homebrew's `docker` **formula** installs only the client. Alongside Docker Desktop it
+can shadow Desktop's own CLI on `PATH` and then fail to find Desktop's Compose plugin, so
+`docker compose` keeps failing after an apparently successful install. `brew uninstall docker`
+leaves a single working CLI.
 
 Docker is only a convenience for getting a Postgres instance. Any PostgreSQL 16 server will do —
 see [If you already run Postgres locally](#if-you-already-run-postgres-locally) below.
