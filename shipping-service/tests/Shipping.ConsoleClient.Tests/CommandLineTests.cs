@@ -41,15 +41,71 @@ public class CommandLineTests
     }
 
     [Fact]
-    public void Update_reads_the_id_then_a_complete_package_type()
+    public void Update_reads_the_id_then_named_options()
     {
         var (id, request) = CommandLine.ParseUpdate(
-            ["update", "11111111-1111-1111-1111-111111111111", "Small", "200", "300", "150", "6.00"]);
+            ["update", "11111111-1111-1111-1111-111111111111", "--name", "Small", "--cost", "6.00"]);
 
         Assert.Equal(Guid.Parse("11111111-1111-1111-1111-111111111111"), id);
         Assert.Equal("Small", request.Name);
-        Assert.Equal(200, request.LengthMm);
         Assert.Equal(6.00m, request.Cost);
+
+        // Everything not named is absent, so the API leaves it alone.
+        Assert.Null(request.LengthMm);
+        Assert.Null(request.BreadthMm);
+        Assert.Null(request.HeightMm);
+    }
+
+    [Fact]
+    public void Update_accepts_a_single_option()
+    {
+        var (_, request) = CommandLine.ParseUpdate(
+            ["update", "11111111-1111-1111-1111-111111111111", "--cost", "6.00"]);
+
+        Assert.Equal(6.00m, request.Cost);
+        Assert.False(request.IsEmpty);
+    }
+
+    [Fact]
+    public void Update_reads_every_option()
+    {
+        var (_, request) = CommandLine.ParseUpdate([
+            "update", "11111111-1111-1111-1111-111111111111",
+            "--name", "Small", "--length", "210", "--breadth", "310", "--height", "160", "--cost", "5.50",
+        ]);
+
+        Assert.Equal("Small", request.Name);
+        Assert.Equal(210, request.LengthMm);
+        Assert.Equal(310, request.BreadthMm);
+        Assert.Equal(160, request.HeightMm);
+        Assert.Equal(5.50m, request.Cost);
+    }
+
+    [Fact]
+    public void Update_with_no_options_is_rejected()
+    {
+        var ex = Assert.Throws<FormatException>(
+            () => CommandLine.ParseUpdate(["update", "11111111-1111-1111-1111-111111111111"]));
+
+        Assert.Contains("at least one option", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_unknown_update_option_is_rejected()
+    {
+        var ex = Assert.Throws<FormatException>(() => CommandLine.ParseUpdate(
+            ["update", "11111111-1111-1111-1111-111111111111", "--colour", "red"]));
+
+        Assert.Contains("Unknown option '--colour'", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_update_option_without_a_value_is_rejected()
+    {
+        var ex = Assert.Throws<FormatException>(() => CommandLine.ParseUpdate(
+            ["update", "11111111-1111-1111-1111-111111111111", "--cost"]));
+
+        Assert.Contains("needs a value", ex.Message, StringComparison.Ordinal);
     }
 
     [Fact]
@@ -58,18 +114,20 @@ public class CommandLineTests
             Guid.Parse("11111111-1111-1111-1111-111111111111"),
             CommandLine.ParseDelete(["delete", "11111111-1111-1111-1111-111111111111"]));
 
-    [Theory]
-    [InlineData("delete", "not-a-guid")]
-    [InlineData("update", "12345")]
-    public void An_id_that_is_not_a_guid_is_rejected(string command, string id)
+    [Fact]
+    public void A_delete_id_that_is_not_a_guid_is_rejected()
     {
-        string[] args = command == "delete"
-            ? [command, id]
-            : [command, id, "Small", "200", "300", "150", "6.00"];
+        var ex = Assert.Throws<FormatException>(
+            () => CommandLine.ParseDelete(["delete", "not-a-guid"]));
 
-        var ex = Assert.Throws<FormatException>(() => command == "delete"
-            ? CommandLine.ParseDelete(args)
-            : CommandLine.ParseUpdate(args).Id);
+        Assert.Contains("not a valid id", ex.Message, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void An_update_id_that_is_not_a_guid_is_rejected()
+    {
+        var ex = Assert.Throws<FormatException>(
+            () => CommandLine.ParseUpdate(["update", "12345", "--cost", "6.00"]));
 
         Assert.Contains("not a valid id", ex.Message, StringComparison.Ordinal);
     }
@@ -100,15 +158,6 @@ public class CommandLineTests
 
         Assert.Contains("takes 5 arguments", ex.Message, StringComparison.Ordinal);
         Assert.Contains("add <name> <length> <breadth> <height> <cost>", ex.Message, StringComparison.Ordinal);
-    }
-
-    [Fact]
-    public void Update_with_the_wrong_number_of_arguments_names_the_expected_form()
-    {
-        var ex = Assert.Throws<FormatException>(
-            () => CommandLine.ParseUpdate(["update", "11111111-1111-1111-1111-111111111111", "Small"]));
-
-        Assert.Contains("takes 6 arguments", ex.Message, StringComparison.Ordinal);
     }
 
     [Theory]

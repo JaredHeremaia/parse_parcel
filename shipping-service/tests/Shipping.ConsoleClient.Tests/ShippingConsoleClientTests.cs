@@ -89,7 +89,7 @@ public class ShippingConsoleClientTests
     }
 
     [Fact]
-    public async Task Update_puts_to_the_id_it_was_given()
+    public async Task Update_patches_the_id_it_was_given()
     {
         var updated = new PackageTypeResponse(
             Guid.Parse("11111111-1111-1111-1111-111111111111"), "Small",
@@ -99,15 +99,36 @@ public class ShippingConsoleClientTests
         var (client, output, _) = Build(handler);
 
         var exitCode = await client.RunAsync(
-            ["update", "11111111-1111-1111-1111-111111111111", "Small", "200", "300", "150", "6.00"]);
+            ["update", "11111111-1111-1111-1111-111111111111", "--cost", "6.00"]);
 
         var request = Assert.Single(handler.Requests);
 
         Assert.Equal(0, exitCode);
-        Assert.Equal(HttpMethod.Put, request.Method);
+        Assert.Equal(HttpMethod.Patch, request.Method);
         Assert.Equal("/api/packages/11111111-1111-1111-1111-111111111111", request.RequestUri!.AbsolutePath);
-        Assert.Contains("\"cost\":6.00", handler.Bodies[0], StringComparison.Ordinal);
         Assert.Contains("Updated 'Small'.", output.ToString(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Update_sends_only_the_options_that_were_given()
+    {
+        var updated = new PackageTypeResponse(
+            Guid.Parse("11111111-1111-1111-1111-111111111111"), "Small",
+            new DimensionsResponse(200, 300, 150, 9_000_000L), 6m, 25m);
+
+        var handler = RespondWith(StubHttpMessageHandler.Ok(updated));
+        var (client, _, _) = Build(handler);
+
+        await client.RunAsync(["update", "11111111-1111-1111-1111-111111111111", "--cost", "6.00"]);
+
+        var body = handler.Bodies[0];
+
+        // The fields not asked for are absent, so the API leaves them alone.
+        Assert.Contains("\"cost\":6.00", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"lengthMm\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"breadthMm\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"heightMm\"", body, StringComparison.Ordinal);
+        Assert.DoesNotContain("\"name\"", body, StringComparison.Ordinal);
     }
 
     [Fact]

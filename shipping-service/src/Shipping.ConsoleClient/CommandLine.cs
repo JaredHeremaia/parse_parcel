@@ -15,9 +15,12 @@ internal static class CommandLine
           list                                                      every package type
           quote  <length> <breadth> <height> <weight>               advise on cost and package type
           add    <name> <length> <breadth> <height> <cost>          add a package type
-          update <id> <name> <length> <breadth> <height> <cost>     replace a package type
+          update <id> [options]                                     change part of a package type
           delete <id>                                               remove a package type
           help                                                      show this
+
+        Update options, at least one required. Anything left out keeps its current value:
+          --name <name>   --length <mm>   --breadth <mm>   --height <mm>   --cost <amount>
 
         Lengths are whole millimetres, weight is kilograms, cost is NZD.
         A name containing spaces needs quoting: add "Extra Large" 500 700 300 12.50
@@ -48,14 +51,56 @@ internal static class CommandLine
     }
 
     /// <summary>
-    /// PUT replaces the whole package type, so every field is required rather than merged
-    /// into the existing one. What you type is what the package type becomes.
+    /// Update is a PATCH, so only the options given are sent and everything else keeps its
+    /// current value. Options are named because a partial change cannot be positional.
     /// </summary>
-    public static (Guid Id, PackageTypeRequest Request) ParseUpdate(string[] args)
+    public static (Guid Id, PackageTypePatchRequest Request) ParseUpdate(string[] args)
     {
-        Require(args, 7, "update <id> <name> <length> <breadth> <height> <cost>");
+        if (args.Length < 3)
+        {
+            throw new FormatException(
+                "'update' needs an id and at least one option. Expected: " +
+                "update <id> [--name <name>] [--length <mm>] [--breadth <mm>] [--height <mm>] [--cost <amount>]");
+        }
 
-        return (ParseGuid(args[1]), ParsePackage(args, offset: 2));
+        var id = ParseGuid(args[1]);
+
+        string? name = null;
+        int? length = null;
+        int? breadth = null;
+        int? height = null;
+        decimal? cost = null;
+
+        for (var i = 2; i < args.Length; i += 2)
+        {
+            var option = args[i].ToLowerInvariant();
+
+            // Check the option is one we know before asking for its value, so an unknown
+            // flag is reported as unknown rather than as a missing value.
+            if (option is not ("--name" or "--length" or "--breadth" or "--height" or "--cost"))
+            {
+                throw new FormatException(
+                    $"Unknown option '{args[i]}'. Expected --name, --length, --breadth, --height or --cost.");
+            }
+
+            if (i + 1 >= args.Length)
+            {
+                throw new FormatException($"'{args[i]}' needs a value.");
+            }
+
+            var value = args[i + 1];
+
+            switch (option)
+            {
+                case "--name": name = value; break;
+                case "--length": length = ParseInt(value, "length"); break;
+                case "--breadth": breadth = ParseInt(value, "breadth"); break;
+                case "--height": height = ParseInt(value, "height"); break;
+                default: cost = ParseDecimal(value, "cost"); break;
+            }
+        }
+
+        return (id, new PackageTypePatchRequest(name, length, breadth, height, cost));
     }
 
     public static Guid ParseDelete(string[] args)

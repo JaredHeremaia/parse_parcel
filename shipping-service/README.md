@@ -53,7 +53,7 @@ Those `dotnet` commands are identical on every platform. If you prefer shorter o
 | GET    | `/api/packages`             | Every package type: size, dimensions, price      |
 | GET    | `/api/packages/{id\|name}`  | One package type, by id or by name (`small`)     |
 | POST   | `/api/packages`             | Add a package type                               |
-| PUT    | `/api/packages/{id}`        | Replace a package type                           |
+| PATCH  | `/api/packages/{id}`        | Change part of a package type                    |
 | DELETE | `/api/packages/{id}`        | Remove a package type                            |
 | POST   | `/api/quotes`               | Advise on cost and package type for a package    |
 | GET    | `/health`                   | Liveness                                         |
@@ -112,6 +112,36 @@ Names are unique, so reusing one is a `409`:
   "title": "Conflict",
   "status": 409,
   "detail": "A package type named 'Small' already exists."
+}
+```
+
+**Change part of a package type** — `PATCH` applies only the fields present in the body, so a
+price change does not mean restating the dimensions:
+
+```bash
+curl -X PATCH http://localhost:5080/api/packages/11111111-1111-1111-1111-111111111111 \
+  -H 'Content-Type: application/json' \
+  -d '{"cost":6.25}'
+```
+
+```json
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "Small",
+  "dimensions": { "lengthMm": 200, "breadthMm": 300, "heightMm": 150, "volumeMm3": 9000000 },
+  "cost": 6.25,
+  "maxWeightKg": 25
+}
+```
+
+A body with nothing in it is a `400` rather than a silent no-op:
+
+```json
+{
+  "title": "Invalid request",
+  "status": 400,
+  "detail": "Provide at least one of name, lengthMm, breadthMm, heightMm or cost.",
+  "errors": ["Provide at least one of name, lengthMm, breadthMm, heightMm or cost."]
 }
 ```
 
@@ -181,7 +211,7 @@ catalogue plus a quote for the sample package — or give it a command:
 list                                                    every package type
 quote  <length> <breadth> <height> <weight>             advise on cost and package type
 add    <name> <length> <breadth> <height> <cost>        add a package type
-update <id> <name> <length> <breadth> <height> <cost>   replace a package type
+update <id> [options]                                   change part of a package type
 delete <id>                                             remove a package type
 help                                                    show usage
 ```
@@ -193,6 +223,13 @@ needs quoting. Arguments after `--` go to the client rather than to `dotnet run`
 dotnet run --project src/Shipping.ConsoleClient
 dotnet run --project src/Shipping.ConsoleClient -- quote 201 300 150 5
 dotnet run --project src/Shipping.ConsoleClient -- add "Extra Large" 500 700 300 12.50
+dotnet run --project src/Shipping.ConsoleClient -- update <id> --cost 9.99
+```
+
+Update options, at least one required — anything left out keeps its current value:
+
+```
+--name <name>   --length <mm>   --breadth <mm>   --height <mm>   --cost <amount>
 ```
 
 ```
@@ -224,8 +261,9 @@ Added 'Extra Large'.
   de3436e9-3971-4d03-a4c6-92e29c4ff4d8
 ```
 
-`update` is a `PUT`, so it replaces the whole package type — every field is required and what
-you type is what it becomes, rather than being merged into the existing values.
+`update` is a `PATCH`, so it changes only what you name. Options are `--name`, `--length`,
+`--breadth`, `--height` and `--cost`; at least one is required and anything left out keeps its
+current value. The client omits absent fields from the JSON rather than sending nulls.
 
 A package we cannot ship is reported with the API's machine-readable `reason` rather than a
 bare status code:
@@ -438,7 +476,7 @@ network or database is involved.
 - **"No packaging solution" is a 422, not a 200 with nulls or a 400.** The request was
   valid; we simply cannot ship it. The `reason` extension lets clients branch without
   parsing prose.
-- **Package types are data, not an enum**, so `POST`/`PUT`/`DELETE` are meaningful and a new
+- **Package types are data, not an enum**, so `POST`/`PATCH`/`DELETE` are meaningful and a new
   size can be added without a deployment. Names are unique and are accepted as a lookup key.
 - **Whole millimetres and `decimal` costs.** Dimensions are integers because the price list
   is expressed that way; money is never a float. Costs round to cents on the way in.
@@ -454,5 +492,6 @@ network or database is involved.
 
 Swagger/OpenAPI (left out to keep the dependency list to one optional package), structured
 request logging with correlation ids, authentication on the write endpoints, optimistic
-concurrency on `PUT`, and a `PATCH` so a single field can be changed without restating the
-rest. If quoting became hot, the catalogue is small and stable enough to cache.
+concurrency on `PATCH` so two people editing the same package type cannot silently overwrite
+each other, and a `PUT` alongside it for callers that genuinely want to replace a whole record.
+If quoting became hot, the catalogue is small and stable enough to cache.

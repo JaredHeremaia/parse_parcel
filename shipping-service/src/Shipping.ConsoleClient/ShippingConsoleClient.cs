@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Shipping.Contracts;
 
 namespace Shipping.ConsoleClient;
@@ -25,7 +26,12 @@ internal static class ExitCodes
 internal sealed class ShippingConsoleClient
 {
     // The API serialises with ASP.NET's web defaults (camelCase), so read it back the same way.
-    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
+    // Nulls are dropped on the way out so a patch carries only the fields actually being
+    // changed, rather than a body full of nulls the server would have to read as "absent".
+    private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
+    };
 
     private readonly HttpClient _http;
     private readonly TextWriter _output;
@@ -115,11 +121,17 @@ internal sealed class ShippingConsoleClient
 
     private async Task<int> UpdateAsync(
         Guid id,
-        PackageTypeRequest request,
+        PackageTypePatchRequest request,
         CancellationToken cancellationToken)
     {
+        // PATCH has no PatchAsJsonAsync helper, so build the message directly.
+        using var message = new HttpRequestMessage(HttpMethod.Patch, $"/api/packages/{id}")
+        {
+            Content = JsonContent.Create(request, options: Json),
+        };
+
         using var response = await _http
-            .PutAsJsonAsync($"/api/packages/{id}", request, Json, cancellationToken)
+            .SendAsync(message, cancellationToken)
             .ConfigureAwait(false);
 
         return await WriteChangedPackageAsync(response, "Updated", cancellationToken).ConfigureAwait(false);

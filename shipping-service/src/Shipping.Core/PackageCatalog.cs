@@ -73,14 +73,24 @@ public sealed class PackageCatalog
         return Result<PackageType>.Success(packageType);
     }
 
+    /// <summary>
+    /// Applies a partial change. Fields left null keep their current value, so the caller
+    /// does not have to restate the whole package type to alter one part of it.
+    /// </summary>
     public async Task<Result<PackageType>> UpdateAsync(
         Guid id,
-        string name,
-        Dimensions dimensions,
-        decimal cost,
+        PackageTypeChanges changes,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(dimensions);
+        ArgumentNullException.ThrowIfNull(changes);
+
+        var packageType = await _store.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
+        if (packageType is null)
+        {
+            return Result<PackageType>.NotFound($"No package type found with id '{id}'.");
+        }
+
+        var name = changes.Name ?? packageType.Name;
 
         var validation = ValidateName(name);
         if (validation is not null)
@@ -88,10 +98,10 @@ public sealed class PackageCatalog
             return Result<PackageType>.Invalid(validation);
         }
 
-        var packageType = await _store.GetByIdAsync(id, cancellationToken).ConfigureAwait(false);
-        if (packageType is null)
+        if (!changes.TryApplyTo(packageType.MaxDimensions, out var dimensions))
         {
-            return Result<PackageType>.NotFound($"No package type found with id '{id}'.");
+            return Result<PackageType>.Invalid(
+                $"Dimensions must be between 1mm and {Dimensions.MaxSideMm}mm.");
         }
 
         var clash = await _store.GetByNameAsync(name, cancellationToken).ConfigureAwait(false);
@@ -102,7 +112,7 @@ public sealed class PackageCatalog
 
         try
         {
-            packageType.Update(name, dimensions, cost);
+            packageType.Update(name, dimensions!, changes.Cost ?? packageType.Cost);
         }
         catch (ArgumentException ex)
         {

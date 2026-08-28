@@ -162,11 +162,11 @@ public sealed class PackageEndpointsTests : IDisposable
     }
 
     [Fact]
-    public async Task Put_replaces_a_package_type()
+    public async Task Patch_applies_every_field_it_is_given()
     {
-        var request = new PackageTypeRequest("Small", 210, 310, 160, 5.50m);
+        var request = new PackageTypePatchRequest("Small", 210, 310, 160, 5.50m);
 
-        var response = await _client.PutAsJsonAsync($"/api/packages/{StandardPackageTypes.SmallId}", request);
+        var response = await PatchAsync(StandardPackageTypes.SmallId, request);
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
 
@@ -179,34 +179,78 @@ public sealed class PackageEndpointsTests : IDisposable
     }
 
     [Fact]
-    public async Task Put_against_an_unknown_id_returns_404()
+    public async Task Patch_leaves_out_fields_alone()
     {
-        var response = await _client.PutAsJsonAsync(
-            $"/api/packages/{Guid.NewGuid()}",
-            new PackageTypeRequest("Nope", 10, 10, 10, 1m));
+        var response = await PatchAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypePatchRequest(Cost: 6.25m));
+
+        Assert.Equal(HttpStatusCode.OK, response.StatusCode);
+
+        var updated = await response.Content.ReadFromJsonAsync<PackageTypeResponse>();
+
+        Assert.Equal(6.25m, updated!.Cost);
+        Assert.Equal("Small", updated.Name);
+        Assert.Equal(200, updated.Dimensions.LengthMm);
+        Assert.Equal(300, updated.Dimensions.BreadthMm);
+        Assert.Equal(150, updated.Dimensions.HeightMm);
+    }
+
+    [Fact]
+    public async Task Patch_can_change_one_side_without_the_others()
+    {
+        var response = await PatchAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypePatchRequest(LengthMm: 250));
+
+        var updated = await response.Content.ReadFromJsonAsync<PackageTypeResponse>();
+
+        Assert.Equal(250, updated!.Dimensions.LengthMm);
+        Assert.Equal(300, updated.Dimensions.BreadthMm);
+        Assert.Equal(5m, updated.Cost);
+    }
+
+    [Fact]
+    public async Task Patch_with_an_empty_body_returns_400()
+    {
+        var response = await PatchAsync(StandardPackageTypes.SmallId, new PackageTypePatchRequest());
+
+        Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
+
+        var problem = await response.Content.ReadFromJsonAsync<ApiErrorResponse>();
+        Assert.Contains("at least one", problem!.Detail, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task Patch_against_an_unknown_id_returns_404()
+    {
+        var response = await PatchAsync(Guid.NewGuid(), new PackageTypePatchRequest(Name: "Nope"));
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
     }
 
     [Fact]
-    public async Task Put_that_takes_another_package_types_name_returns_409()
+    public async Task Patch_that_takes_another_package_types_name_returns_409()
     {
-        var response = await _client.PutAsJsonAsync(
-            $"/api/packages/{StandardPackageTypes.SmallId}",
-            new PackageTypeRequest("Medium", 10, 10, 10, 1m));
+        var response = await PatchAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypePatchRequest(Name: "Medium"));
 
         Assert.Equal(HttpStatusCode.Conflict, response.StatusCode);
     }
 
     [Fact]
-    public async Task Put_with_invalid_values_returns_400()
+    public async Task Patch_with_invalid_values_returns_400()
     {
-        var response = await _client.PutAsJsonAsync(
-            $"/api/packages/{StandardPackageTypes.SmallId}",
-            new PackageTypeRequest("Small", 0, 300, 150, 5m));
+        var response = await PatchAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypePatchRequest(LengthMm: 0));
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
     }
+
+    private Task<HttpResponseMessage> PatchAsync(Guid id, PackageTypePatchRequest request)
+        => _client.PatchAsJsonAsync($"/api/packages/{id}", request);
 
     [Fact]
     public async Task Delete_removes_the_package_type()

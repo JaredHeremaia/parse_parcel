@@ -13,7 +13,7 @@ internal static class PackageEndpoints
         group.MapGet("/", GetAllAsync).WithName("GetPackages");
         group.MapGet("/{idOrName}", GetOneAsync).WithName("GetPackage");
         group.MapPost("/", CreateAsync).WithName("CreatePackage");
-        group.MapPut("/{id:guid}", UpdateAsync).WithName("UpdatePackage");
+        group.MapPatch("/{id:guid}", UpdateAsync).WithName("UpdatePackage");
         group.MapDelete("/{id:guid}", DeleteAsync).WithName("DeletePackage");
 
         return group;
@@ -78,10 +78,13 @@ internal static class PackageEndpoints
             created.ToResponse(options.MaxWeightKg));
     }
 
-    /// <summary>PUT /api/packages/{id} - replace a package type.</summary>
+    /// <summary>
+    /// PATCH /api/packages/{id} - change part of a package type. Fields left out of the
+    /// body keep their current value.
+    /// </summary>
     private static async Task<IResult> UpdateAsync(
         Guid id,
-        PackageTypeRequest request,
+        PackageTypePatchRequest request,
         PackageCatalog catalog,
         PackagingOptions options,
         CancellationToken cancellationToken)
@@ -97,9 +100,14 @@ internal static class PackageEndpoints
             return ApiResults.Invalid(errors);
         }
 
-        var dimensions = new Dimensions(request.LengthMm!.Value, request.BreadthMm!.Value, request.HeightMm!.Value);
+        var changes = new PackageTypeChanges(
+            request.Name,
+            request.LengthMm,
+            request.BreadthMm,
+            request.HeightMm,
+            request.Cost);
 
-        var result = await catalog.UpdateAsync(id, request.Name!, dimensions, request.Cost!.Value, cancellationToken);
+        var result = await catalog.UpdateAsync(id, changes, cancellationToken);
 
         return result.IsSuccess
             ? TypedResults.Ok(result.Value.ToResponse(options.MaxWeightKg))

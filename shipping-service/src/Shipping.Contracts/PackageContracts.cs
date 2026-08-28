@@ -19,8 +19,8 @@ public sealed record PackageTypeResponse(
     decimal MaxWeightKg);
 
 /// <summary>
-/// Body for POST /api/packages and PUT /api/packages/{id}. Fields are nullable so a
-/// missing value is reported as "required" rather than silently defaulting to zero.
+/// Body for POST /api/packages. Fields are nullable so a missing value is reported as
+/// "required" rather than silently defaulting to zero.
 /// </summary>
 public sealed record PackageTypeRequest(
     string? Name,
@@ -50,6 +50,50 @@ public sealed record PackageTypeRequest(
             case < 0m:
                 errors.Add("cost must not be negative.");
                 break;
+        }
+
+        return errors;
+    }
+}
+
+/// <summary>
+/// Body for PATCH /api/packages/{id}. Every field is optional: an absent field is left as
+/// it is, so a caller can change one thing without restating the rest. Absent and null are
+/// the same thing here, since none of these fields may legitimately be null.
+/// </summary>
+public sealed record PackageTypePatchRequest(
+    string? Name = null,
+    int? LengthMm = null,
+    int? BreadthMm = null,
+    int? HeightMm = null,
+    decimal? Cost = null)
+{
+    public bool IsEmpty =>
+        Name is null && LengthMm is null && BreadthMm is null && HeightMm is null && Cost is null;
+
+    public IReadOnlyList<string> Validate()
+    {
+        var errors = new List<string>();
+
+        if (IsEmpty)
+        {
+            errors.Add("Provide at least one of name, lengthMm, breadthMm, heightMm or cost.");
+            return errors;
+        }
+
+        // Only what was supplied is checked; the rest keeps its current, already valid value.
+        if (Name is not null && string.IsNullOrWhiteSpace(Name))
+        {
+            errors.Add("name must not be blank.");
+        }
+
+        ValidationRules.CheckSideIfSupplied(LengthMm, "lengthMm", errors);
+        ValidationRules.CheckSideIfSupplied(BreadthMm, "breadthMm", errors);
+        ValidationRules.CheckSideIfSupplied(HeightMm, "heightMm", errors);
+
+        if (Cost is < 0m)
+        {
+            errors.Add("cost must not be negative.");
         }
 
         return errors;
@@ -111,10 +155,21 @@ internal static class ValidationRules
 
     public static void RequirePositiveSide(int? value, string field, List<string> errors)
     {
+        if (value is null)
+        {
+            errors.Add($"{field} is required.");
+            return;
+        }
+
+        CheckSideIfSupplied(value, field, errors);
+    }
+
+    /// <summary>Checks a side only when one was given; absent is allowed on a patch.</summary>
+    public static void CheckSideIfSupplied(int? value, string field, List<string> errors)
+    {
         switch (value)
         {
             case null:
-                errors.Add($"{field} is required.");
                 break;
             case <= 0:
                 errors.Add($"{field} must be greater than zero.");

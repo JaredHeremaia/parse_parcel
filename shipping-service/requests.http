@@ -54,11 +54,29 @@ Content-Type: application/json
 
 { "name": "small", "lengthMm": 10, "breadthMm": 10, "heightMm": 10, "cost": 1 }
 
-### Update a package type (replace all fields)
-PUT {{host}}/api/packages/11111111-1111-1111-1111-111111111111
+### Update just the cost, everything else left alone
+PATCH {{host}}/api/packages/11111111-1111-1111-1111-111111111111
 Content-Type: application/json
 
-{ "name": "Small", "lengthMm": 200, "breadthMm": 300, "heightMm": 150, "cost": 5.50 }
+{ "cost": 5.50 }
+
+### Update several fields at once
+PATCH {{host}}/api/packages/11111111-1111-1111-1111-111111111111
+Content-Type: application/json
+
+{ "name": "Small", "lengthMm": 210, "cost": 5.75 }
+
+### Update with an empty body (400)
+PATCH {{host}}/api/packages/11111111-1111-1111-1111-111111111111
+Content-Type: application/json
+
+{ }
+
+### Update onto another package type's name (409)
+PATCH {{host}}/api/packages/11111111-1111-1111-1111-111111111111
+Content-Type: application/json
+
+{ "name": "Medium" }
 
 ### Delete a package type
 DELETE {{host}}/api/packages/33333333-3333-3333-3333-333333333333

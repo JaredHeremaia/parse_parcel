@@ -135,15 +135,13 @@ public class PackageCatalogTests
     }
 
     [Fact]
-    public async Task Updating_replaces_the_package_type()
+    public async Task Updating_applies_every_field_it_is_given()
     {
         var catalog = CreateCatalog();
 
         var result = await catalog.UpdateAsync(
             StandardPackageTypes.SmallId,
-            "Small",
-            new Dimensions(210, 310, 160),
-            5.50m);
+            new PackageTypeChanges("Small", 210, 310, 160, 5.50m));
 
         Assert.True(result.IsSuccess);
 
@@ -154,10 +152,51 @@ public class PackageCatalogTests
     }
 
     [Fact]
+    public async Task Fields_left_out_keep_their_current_value()
+    {
+        var catalog = CreateCatalog();
+
+        var result = await catalog.UpdateAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypeChanges(Cost: 6.25m));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(6.25m, result.Value.Cost);
+
+        // Everything else is untouched.
+        Assert.Equal("Small", result.Value.Name);
+        Assert.Equal(new Dimensions(200, 300, 150), result.Value.MaxDimensions);
+    }
+
+    [Fact]
+    public async Task A_single_side_can_be_changed_on_its_own()
+    {
+        var result = await CreateCatalog().UpdateAsync(
+            StandardPackageTypes.SmallId,
+            new PackageTypeChanges(LengthMm: 250));
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(new Dimensions(250, 300, 150), result.Value.MaxDimensions);
+        Assert.Equal(5m, result.Value.Cost);
+    }
+
+    [Fact]
+    public async Task An_empty_change_leaves_the_package_type_as_it_was()
+    {
+        var result = await CreateCatalog()
+            .UpdateAsync(StandardPackageTypes.SmallId, new PackageTypeChanges());
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Small", result.Value.Name);
+        Assert.Equal(new Dimensions(200, 300, 150), result.Value.MaxDimensions);
+        Assert.Equal(5m, result.Value.Cost);
+    }
+
+    [Fact]
     public async Task Updating_something_that_does_not_exist_reports_not_found()
     {
         var result = await CreateCatalog()
-            .UpdateAsync(Guid.NewGuid(), "Small", new Dimensions(10, 10, 10), 1m);
+            .UpdateAsync(Guid.NewGuid(), new PackageTypeChanges(Name: "Small"));
 
         Assert.Equal(ErrorCode.NotFound, result.Error);
     }
@@ -166,7 +205,7 @@ public class PackageCatalogTests
     public async Task Renaming_onto_another_package_types_name_is_a_conflict()
     {
         var result = await CreateCatalog()
-            .UpdateAsync(StandardPackageTypes.SmallId, "medium", new Dimensions(10, 10, 10), 1m);
+            .UpdateAsync(StandardPackageTypes.SmallId, new PackageTypeChanges(Name: "medium"));
 
         Assert.Equal(ErrorCode.Conflict, result.Error);
     }
@@ -175,7 +214,7 @@ public class PackageCatalogTests
     public async Task Keeping_its_own_name_is_not_a_conflict()
     {
         var result = await CreateCatalog()
-            .UpdateAsync(StandardPackageTypes.SmallId, "SMALL", new Dimensions(200, 300, 150), 5m);
+            .UpdateAsync(StandardPackageTypes.SmallId, new PackageTypeChanges(Name: "SMALL"));
 
         Assert.True(result.IsSuccess);
         Assert.Equal("SMALL", result.Value.Name);
@@ -185,7 +224,16 @@ public class PackageCatalogTests
     public async Task Updating_with_an_invalid_name_is_invalid()
     {
         var result = await CreateCatalog()
-            .UpdateAsync(StandardPackageTypes.SmallId, " ", new Dimensions(10, 10, 10), 1m);
+            .UpdateAsync(StandardPackageTypes.SmallId, new PackageTypeChanges(Name: " "));
+
+        Assert.Equal(ErrorCode.Invalid, result.Error);
+    }
+
+    [Fact]
+    public async Task Updating_to_an_impossible_side_is_invalid()
+    {
+        var result = await CreateCatalog()
+            .UpdateAsync(StandardPackageTypes.SmallId, new PackageTypeChanges(LengthMm: 0));
 
         Assert.Equal(ErrorCode.Invalid, result.Error);
     }
