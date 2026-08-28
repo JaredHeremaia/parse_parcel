@@ -193,6 +193,21 @@ docker compose up -d
 dotnet run --project src/Shipping.Api --launch-profile postgres
 ```
 
+`docker compose` (with a space) is Compose v2, which ships as a plugin to the Docker CLI:
+
+| Platform | How to get it |
+|----------|---------------|
+| macOS | [Docker Desktop](https://docs.docker.com/desktop/install/mac-install/) includes it. If you have the `docker` CLI without it, `brew install docker-compose` adds the plugin. |
+| Windows | [Docker Desktop](https://docs.docker.com/desktop/install/windows-install/) includes it. WSL 2 is the recommended backend. |
+| Linux | [Install the plugin](https://docs.docker.com/compose/install/linux/) (`docker-compose-plugin`). |
+
+Check it with `docker compose version`. If that reports `unknown command: docker compose`, the
+plugin is missing — the old standalone `docker-compose` (with a hyphen) is a separate v1 tool
+and is no longer maintained.
+
+Docker is only a convenience for getting a Postgres instance. Any PostgreSQL 16 server will do —
+see [If you already run Postgres locally](#if-you-already-run-postgres-locally) below.
+
 Or set it explicitly — macOS/Linux:
 
 ```bash
@@ -214,6 +229,37 @@ the same variable names work on every platform.
 
 On startup the schema is created if missing and the price list is seeded. Everything else
 behaves identically — only the `IPackageTypeStore` implementation changes.
+
+### If you already run Postgres locally
+
+`docker-compose.yml` publishes the container on **5432**, the default Postgres port. If you
+already have a Postgres running there — a Homebrew `postgresql@16` service, say — the container
+either fails to bind the port, or binds it and the API silently connects to *the wrong server*.
+That second case shows up as:
+
+```
+Npgsql.PostgresException  28000: role "shipping" does not exist
+```
+
+The connection succeeded; it just reached a server that has no `shipping` role. Check what holds
+the port with `lsof -nP -iTCP:5432 -sTCP:LISTEN` (macOS/Linux) or
+`netstat -ano | findstr :5432` (Windows). Three ways out:
+
+**Use the Postgres you already have** — no Docker needed. The connection string expects a
+database, user and password all named `shipping`:
+
+```bash
+psql -U "$USER" -d postgres -c "CREATE ROLE shipping LOGIN PASSWORD 'shipping';"
+psql -U "$USER" -d postgres -c "CREATE DATABASE shipping OWNER shipping;"
+```
+
+Then run the `postgres` launch profile as above; the schema and price list are created on
+startup. To undo: `DROP DATABASE shipping;` then `DROP ROLE shipping;`.
+
+**Stop the local server** for the duration — `brew services stop postgresql@16` on macOS.
+
+**Move the container to another port**, changing the published port in `docker-compose.yml` to
+`"5433:5432"` and pointing the connection string at `Port=5433`.
 
 ## Layout
 
