@@ -60,6 +60,12 @@ Those `dotnet` commands are identical on every platform. If you prefer shorter o
 
 `requests.http` has a ready-made request for each of these, including the failure cases.
 
+> **On Windows PowerShell**, the examples below need two adjustments. `curl` is an alias for
+> `Invoke-WebRequest`, which has no `-X` parameter, so call `curl.exe` by its full name. And
+> `\` is not a line continuation — either put the command on one line or use a backtick
+> `` ` ``. See [Calling the API from PowerShell](#calling-the-api-from-powershell) for the
+> native alternative.
+
 **Get one package type** — by name (case-insensitive) or by id:
 
 ```bash
@@ -202,6 +208,36 @@ and a machine-readable `reason` (`Overweight` or `Oversized`):
 | 409  | A package type with that name already exists                      |
 | 422  | Valid request, but no packaging solution (too big or too heavy)    |
 
+### Calling the API from PowerShell
+
+`curl.exe` works exactly as above once you use the full name and keep the command on one line:
+
+```powershell
+curl.exe -X POST http://localhost:5080/api/quotes -H "Content-Type: application/json" -d '{"lengthMm":200,"breadthMm":300,"heightMm":150,"weightKg":5}'
+```
+
+`Invoke-RestMethod` is the native option, and it avoids quoting JSON by hand. It also parses
+the response, so you get `.packageType` and `.cost` rather than raw text:
+
+```powershell
+$body = @{ lengthMm = 200; breadthMm = 300; heightMm = 150; weightKg = 5 } | ConvertTo-Json
+
+Invoke-RestMethod -Method Post -Uri http://localhost:5080/api/quotes `
+  -ContentType 'application/json' -Body $body
+```
+
+Note that `Invoke-RestMethod` throws on a non-2xx response rather than returning it, so reading
+the body of a `404`, `409` or `422` means catching the exception:
+
+```powershell
+try { Invoke-RestMethod -Method Delete -Uri http://localhost:5080/api/packages/$id }
+catch { $_.ErrorDetails.Message }
+```
+
+The same applies to every other example in this section. Alternatively `requests.http` runs each
+request from VS Code, Visual Studio or Rider with no shell quoting at all, and the
+[console client](#console-client) covers the same operations.
+
 ## Console client
 
 `Shipping.ConsoleClient` calls the API over HTTP. Run it with no arguments for a tour — the
@@ -301,9 +337,24 @@ themselves and pass the underlying exit code straight through.
 
 **Windows notes**
 
-- PowerShell may block unsigned scripts. Either allow them for the current session with
-  `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, or skip the wrappers and use
-  the `dotnet` commands directly — they work unchanged in PowerShell, `cmd.exe` and Git Bash.
+- PowerShell may block unsigned scripts, with "running scripts is disabled on this system".
+  Either allow them for the current session with
+  `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass`, run one script without
+  changing anything via `powershell -ExecutionPolicy Bypass -File .\scripts\test.ps1`, or skip
+  the wrappers and use the `dotnet` commands directly — they work unchanged in PowerShell,
+  `cmd.exe` and Git Bash. If the files came from a zip, `Unblock-File .\scripts\*.ps1` clears
+  the mark-of-the-web that blocks them even when the policy allows scripts.
+- `curl` is an alias for `Invoke-WebRequest` and does not accept `-X`. See
+  [Calling the API from PowerShell](#calling-the-api-from-powershell).
+- Build somewhere you can write. `dotnet build` creates `bin\` and `obj\` inside every project,
+  so a checkout under `C:\Program Files\` fails with access denied unless the prompt is
+  elevated. Anywhere under your user profile is fine.
+- If `dotnet` is not recognised after installing, the installer's `PATH` change does not reach
+  already-open terminals — open a new one. On Arm64 Windows an x64 install lives at
+  `C:\Program Files\dotnet\x64` rather than `C:\Program Files\dotnet`, so check which you have.
+  ```
+   powershell -ExecutionPolicy Bypass -File .\scripts\run-api.ps1
+  ```
 - Environment variables use different syntax. Where this README shows
   `Storage__Provider=Postgres dotnet run ...`, in PowerShell that is:
   ```powershell
