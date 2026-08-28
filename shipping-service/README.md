@@ -60,6 +60,79 @@ Those `dotnet` commands are identical on every platform. If you prefer shorter o
 
 `requests.http` has a ready-made request for each of these, including the failure cases.
 
+**Get one package type** — by name (case-insensitive) or by id:
+
+```bash
+curl http://localhost:5080/api/packages/small
+curl http://localhost:5080/api/packages/11111111-1111-1111-1111-111111111111
+```
+
+```json
+{
+  "id": "11111111-1111-1111-1111-111111111111",
+  "name": "Small",
+  "dimensions": { "lengthMm": 200, "breadthMm": 300, "heightMm": 150, "volumeMm3": 9000000 },
+  "cost": 5.00,
+  "maxWeightKg": 25
+}
+```
+
+An unknown key is a `404`:
+
+```json
+{
+  "title": "Not found",
+  "status": 404,
+  "detail": "No package type found for 'enormous'."
+}
+```
+
+**Add a package type** — responds `201 Created` with a `Location` header and the new record:
+
+```bash
+curl -X POST http://localhost:5080/api/packages \
+  -H 'Content-Type: application/json' \
+  -d '{"name":"Extra Large","lengthMm":500,"breadthMm":700,"heightMm":300,"cost":12.50}'
+```
+
+```json
+{
+  "id": "0e112428-245a-4c9c-a3cd-e942812909ea",
+  "name": "Extra Large",
+  "dimensions": { "lengthMm": 500, "breadthMm": 700, "heightMm": 300, "volumeMm3": 105000000 },
+  "cost": 12.50,
+  "maxWeightKg": 25
+}
+```
+
+Names are unique, so reusing one is a `409`:
+
+```json
+{
+  "title": "Conflict",
+  "status": 409,
+  "detail": "A package type named 'Small' already exists."
+}
+```
+
+**Remove a package type** — by id only, and a successful delete returns `204 No Content` with an
+empty body:
+
+```bash
+curl -i -X DELETE http://localhost:5080/api/packages/0e112428-245a-4c9c-a3cd-e942812909ea
+```
+
+Deleting something that is already gone is a `404`, so the call is safe to retry but not silently
+idempotent:
+
+```json
+{
+  "title": "Not found",
+  "status": 404,
+  "detail": "No package type found with id '0e112428-245a-4c9c-a3cd-e942812909ea'."
+}
+```
+
 **Quoting**
 
 ```bash
