@@ -60,11 +60,10 @@ Those `dotnet` commands are identical on every platform. If you prefer shorter o
 
 `requests.http` has a ready-made request for each of these, including the failure cases.
 
-> **On Windows PowerShell**, the examples below need two adjustments. `curl` is an alias for
-> `Invoke-WebRequest`, which has no `-X` parameter, so call `curl.exe` by its full name. And
-> `\` is not a line continuation — either put the command on one line or use a backtick
-> `` ` ``. See [Calling the API from PowerShell](#calling-the-api-from-powershell) for the
-> native alternative.
+> **On Windows PowerShell these examples do not work as written.** `curl` is an alias for
+> `Invoke-WebRequest`, which has no `-X`; `\` is not a line continuation; and PowerShell 5.1
+> strips the quotes out of the JSON before `curl.exe` receives it. See
+> [Calling the API from PowerShell](#calling-the-api-from-powershell) for versions that work.
 
 **Get one package type** — by name (case-insensitive) or by id:
 
@@ -210,14 +209,9 @@ and a machine-readable `reason` (`Overweight` or `Oversized`):
 
 ### Calling the API from PowerShell
 
-`curl.exe` works exactly as above once you use the full name and keep the command on one line:
-
-```powershell
-curl.exe -X POST http://localhost:5080/api/quotes -H "Content-Type: application/json" -d '{"lengthMm":200,"breadthMm":300,"heightMm":150,"weightKg":5}'
-```
-
-`Invoke-RestMethod` is the native option, and it avoids quoting JSON by hand. It also parses
-the response, so you get `.packageType` and `.cost` rather than raw text:
+`Invoke-RestMethod` is the reliable option. It builds the JSON for you, so there is no shell
+quoting to get wrong, and it parses the response — you get `.packageType` and `.cost` rather
+than raw text:
 
 ```powershell
 $body = @{ lengthMm = 200; breadthMm = 300; heightMm = 150; weightKg = 5 } | ConvertTo-Json
@@ -234,9 +228,25 @@ try { Invoke-RestMethod -Method Delete -Uri http://localhost:5080/api/packages/$
 catch { $_.ErrorDetails.Message }
 ```
 
-The same applies to every other example in this section. Alternatively `requests.http` runs each
-request from VS Code, Visual Studio or Rider with no shell quoting at all, and the
-[console client](#console-client) covers the same operations.
+**If you would rather use `curl.exe`**, note that Windows PowerShell 5.1 strips the inner
+double quotes before the JSON reaches it, and the API answers with
+`'l' is an invalid start of a property name`. Escape them:
+
+```powershell
+curl.exe -X POST http://localhost:5080/api/quotes -H "Content-Type: application/json" -d '{\"lengthMm\":200,\"breadthMm\":300,\"heightMm\":150,\"weightKg\":5}'
+```
+
+Or use `--%`, which passes everything after it to the program untouched:
+
+```powershell
+curl.exe --% -X POST http://localhost:5080/api/quotes -H "Content-Type: application/json" -d {"lengthMm":200,"breadthMm":300,"heightMm":150,"weightKg":5}
+```
+
+PowerShell 7 passes arguments to native programs correctly and needs neither workaround, so the
+bash examples above work there as written.
+
+Alternatively `requests.http` runs each request from VS Code, Visual Studio or Rider with no
+shell quoting at all, and the [console client](#console-client) covers the same operations.
 
 ## Console client
 
